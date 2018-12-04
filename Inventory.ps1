@@ -6,8 +6,8 @@
 		This script is to document the Windows machine with machiens at WMF 5.1. This script will work for Local or remote execution if powershell remoting is enabled. Tested on server 2012,2016,2019, Windows 7, 10.
 
 	.EXAMPLE
-		PS C:\> .\get-inventory.PS1
-        icm -ComputerName ($servers.name) -FilePath get-inventory.ps1
+		PS C:\> .\inventory.PS1
+        icm -ComputerName ($servers.name) -FilePath inventory.ps1
 
 	.OUTPUTS
 		HTML File OutPut ReportDate , General Information , BIOS Information etc.
@@ -51,9 +51,6 @@ $OS = Get-WmiObject -Class Win32_OperatingSystem | Select Caption , OSArchitectu
 
 #Time Zone Information
 $TimeZone = Get-WmiObject -Class Win32_TimeZone | Select Caption , StandardName | ConvertTo-Html -Fragment
-
-#Logical Disk Information
-$Disk = Get-WmiObject -Class Win32_LogicalDisk -Filter DriveType=3 | Select DeviceID , @{Name=”size(GB)”;Expression={“{0:N1}” -f($_.size/1gb)}}, @{Name=”freespace(GB)”;Expression={“{0:N1}” -f($_.freespace/1gb)}} | ConvertTo-Html -Fragment
 
 #CPU Information
 $SystemProcessor = Get-WmiObject -Class Win32_Processor  | Select Name , deviceid, numberofcores, MaxClockSpeed , Manufacturer , status | ConvertTo-Html -Fragment
