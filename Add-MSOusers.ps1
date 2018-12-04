@@ -18,7 +18,7 @@ foreach ($user in $sendemail){
                                             $username = $user.UserPrincipalName
                                             $password = $user.password
 
-                                            Send-MailMessage -To "$username","$cc" -From $cc -Subject "SharePoint Online account" -Body "Welcome to $url. Your username is $username and password is $password" -SmtpServer smtp.csaa.com
+                                            Send-MailMessage -To "$username","$cc" -From $cc -Subject "SharePoint Online account" -Body "Welcome to $url. Your username is $username and password is $password" -SmtpServer smtp.youdomain.com
                                             }
 
 Clear-Variable sendemail, creds 
