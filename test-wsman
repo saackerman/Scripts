@@ -1,0 +1,53 @@
+<# 
+
+Copy paste into powershell ise or save as a ps1. 
+
+.author Sean Ackerman 
+
+.Description 
+
+this is to grab values after a certficate replacement for Vrealize script host servers, these have to match after the = sign. 
+
+this works for simpliy feel free to improve formating. 
+
+Registery value this script looks at 
+
+Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WSMAN\Listener\*+HTTPS" -Name certThumbprint 
+
+Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WSMAN\Service" -Name credssp_thumbprint 
+
+.howtoRemotely 
+
+
+
+icm -ComputerName inpurtservernameshere -FilePath C:\scripts\get-wsmanthumbprint.ps1 -credential adminaccounthere or  
+
+run powershell as that account then icm -ComputerName inpurtservernameshere -FilePath C:\scripts\AAAget-wsmanthumbprint.ps1 
+
+  
+
+#> 
+
+[string]$val1 = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WSMAN\Listener\*+HTTPS" -Name certThumbprint | select certThumbprint 
+
+$val1 
+
+[string]$val2 = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WSMAN\Service" -Name credssp_thumbprint | select credssp_thumbprint  
+
+$val2 
+
+$val3 = $val2 -replace " ","" #removing spaces if present for match operator. 
+
+$val3 
+
+  
+
+$val1 = $val1 -replace 'certThumbprint=' 
+
+$val3 = $val3 -replace 'credssp_thumbprint=' 
+
+  
+
+$env:COMPUTERNAME 
+
+$val1 -match $val3 
