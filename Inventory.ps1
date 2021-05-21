@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-		Windows Machine Inventory Using PowerShell.
+		Windows Machine Inventory Using PowerShell. Use to validate SACM SNOW discovery to augment information in the CMDB.
 
 	.DESCRIPTION
 		This script is to document the Windows machine with machiens at WMF 5.1. This script will work for Local or remote execution if powershell remoting is enabled. Tested on server 2012,2016,2019, Windows 7, 10.
