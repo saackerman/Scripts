@@ -6,13 +6,15 @@
 		This script is to document the Windows machine with machiens at WMF 5.1. This script will work for Local or remote execution if powershell remoting is enabled. Tested on server 2012,2016,2019, Windows 7, 10.
 
 	.EXAMPLE
-		PS C:\> .\inventory.PS1
+	Local
+ 	PS C:\> .\inventory.PS1
+  	Remotely
         icm -ComputerName ($servers.name) -FilePath inventory.ps1
 
 	.OUTPUTS
 		HTML File OutPut ReportDate , General Information , BIOS Information etc.
 #>
-#smtp server change to your server, to, and from address as needed.
+#change email parameters.
 $smtp = "smtp.yourDomain.com"
 $to = "you@yourDomain.com"
 $from = "machine@info.com"
