@@ -9,7 +9,8 @@ Enter url , default is good if you enter nothing
 Enter port default is 443
 
 .EXAMPLE
-invoke-command -computername bobburgers,chestercheese,fruitypebbles -filepath get-certinfo.ps1
+get-certinfo.ps1 -url www.msn.com -port 443
+get-certinfo.ps1 -url mylocalsite.local -port 8443
 
 .OUTPUTS
 $certInfo will contain for example
