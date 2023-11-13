@@ -1,12 +1,15 @@
 <#
 .DESCRIPTION
-gets certificate info. Add fields you want as needed. gets cert thumbprint, name, and start/end date. calculates days until it expires.
+gets certificate info. Add fields you want as needed. gets cert thumbprint, name, and start/end date. calculates days until it expires. Work with powershell 7 and above till the class is retired for something better.
 
 .PARAMETER url
 Enter url , default is good if you enter nothing
 
 .PARAMETER port
 Enter port default is 443
+
+.EXAMPLE
+invoke-command -computername bobburgers,chestercheese,fruitypebbles -filepath get-certinfo.ps1
 
 .OUTPUTS
 $certInfo will contain for example
