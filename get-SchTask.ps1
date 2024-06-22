@@ -1,4 +1,4 @@
-#$taskPath = "\*"  use if you want all tasks at root folder and below
+
 <#
 .SYNOPSIS
     Returns a list of scheduled tasks
