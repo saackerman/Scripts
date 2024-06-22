@@ -20,14 +20,17 @@
 .OUTPUTS
     tasksReport - A list of scheduled tasks
 .NOTES
-    General notes
+    https://devblogs.microsoft.com/scripting/weekend-scripter-use-powershell-to-document-scheduled-tasks/
 #>
 
 
-    [CmdletBinding()]
+    [CmdletBinding(
+        SupportsShouldProcess = $true,
+        HelpUri = 'https://devblogs.microsoft.com/scripting/weekend-scripter-use-powershell-to-document-scheduled-tasks/' )]
     param (
 
-        [Parameter(Position=0, Mandatory=$false)]
+        [Parameter(Position=0, Mandatory=$false, HelpMessage='Enter the path to the folder containing the scheduled tasks. The default is "\*". Wildcards are supported. This will return all tasks in the root folder and below.')]
+        [ValidateNotNull()]
         [string]$taskPath = "\*"
     )    
     
