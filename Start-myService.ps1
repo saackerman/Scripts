@@ -9,13 +9,15 @@
     Prerequisite   : PowerShell V5 +
     Test Platform  : Windows 10,11, Windows Server 2016,2019,2022
 .LINK
-    
+    https://github.com/saackerman/Scripts/blob/master/Start-myService.ps1
     https://www.bing.com/chat?q=Microsoft+Copilot&FORM=hpcodx
 .EXAMPLE
     Start-MyService -service 'wuauserv'
     This will check if the Windows Update service is running and start it if it is not.
 .EXAMPLE
     invoke-command -ComputerName Server01 -filepath C:\Scripts\Start-MyService.ps1 -arguemntList 'wuauserv'
+.ToDo
+    Add logging to log aggreator or choice or local system.
 #>
 
 [CmdletBinding()]
