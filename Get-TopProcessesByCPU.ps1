@@ -4,12 +4,12 @@
 .DESCRIPTION
     
 .EXAMPLE
-    Get-TopProcessesByCPU
-    This will list the top processes by CPU usage from highest to lowest.
+    Get-TopProcessesByCPU -Filter 10 -Counter '\Process(*)\% Processor Time'
+    This will list the top 10 processes by CPU usage from highest to lowest.
 .EXAMPLE
-    Invoke-Command -ComputerName Server01 -filepath C:\Scripts\Get-TopProcessesByCPU.ps1
+    Invoke-Command -ComputerName Server01 -FilePath C:\Scripts\Get-TopProcessesByCPU.ps1 -ArgumentList 10, '\Process(*)\% Processor Time'
 .INPUTS
-    
+    None
 .OUTPUTS
     System.Diagnostics.Process
 .NOTES
@@ -18,9 +18,19 @@
     Prerequisite   : PowerShell V5 +
     
 .LINK
-https://stackoverflow.com/questions/39943928/listing-processes-by-cpu-usage-percentage-in-powershell  #code credit
+
 .TODO
     Parameterize get-counter to allow for different counters to be used. Will need to adjust the math to account for the different counters.
 #>
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory=$false, HelpMessage='Enter the number of processes to list, default is 5, limit is 10.')]
+    [ValidateNotNullOrEmpty()]
+    [ValidateRange(1, 10)]
+    [int]$Filter = 5,
+    [string]$Counter = '\Process(*)\% Processor Time'
+)
+
 $NumberOfLogicalProcessors = (Get-WmiObject -Class Win32_ComputerSystem).NumberOfLogicalProcessors
-(Get-Counter '\Process(*)\% Processor Time').Countersamples | Sort cookedvalue -Desc | ft -a instancename, @{Name='CPU%';Expr={[Math]::Round($_.CookedValue / $NumberOfLogicalProcessors)}}
+
+(Get-Counter $Counter).CounterSamples | Sort-Object CookedValue -Descending | Select-Object -First $Filter | Format-Table -AutoSize InstanceName, @{Name='CPU%'; Expression={[Math]::Round($_.CookedValue / $NumberOfLogicalProcessors)}}
