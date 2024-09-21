@@ -1,0 +1,44 @@
+<#
+.SYNOPSIS
+    This script will list the top processes by CPU usage from highest to lowest.
+.DESCRIPTION
+    
+.EXAMPLE
+    Get-TopProcessesByCPU -Filter 10 -Counter '\Process(*)\% Processor Time'
+    This will list the top 10 processes by CPU usage from highest to lowest.
+.EXAMPLE
+    Invoke-Command -ComputerName Server01 -FilePath C:\Scripts\Get-TopProcessesByCPU.ps1 -ArgumentList 10, '\Process(*)\% Processor Time'
+.INPUTS
+    None
+.OUTPUTS
+    System.Diagnostics.Process
+.NOTES
+    File Name      : Get-TopProcessesByCPU.ps1
+    Author         : Sean Ackerman
+    Prerequisite   : PowerShell V5 +
+    
+.LINK
+
+.TODO
+    Parameterize get-counter to allow for different counters to be used. Will need to adjust the math to account for the different counters.
+#>
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory=$false, HelpMessage='Enter the number of processes to list, default is 5, limit is 10.')]
+    [ValidateNotNullOrEmpty()]
+    [ValidateRange(1, 10)]
+    [int]$Filter = 5,
+    [string]$Counter = '\Process(*)\% Processor Time',
+    [string]$file = 'highcpu.txt'
+)
+while($true){
+Write-Verbose "open $file in $(get-location)" -verbose
+$NumberOfLogicalProcessors = (Get-WmiObject -Class Win32_ComputerSystem).NumberOfLogicalProcessors
+
+$HighCPU = (Get-Counter $Counter).CounterSamples | Sort-Object CookedValue -Descending | Select-Object -First $Filter | Format-Table -AutoSize InstanceName, @{Name='CPU%'; Expression={[Math]::Round($_.CookedValue / $NumberOfLogicalProcessors)}}
+$HughCPU | out-file $file -append
+sleep 30
+
+
+
+}
