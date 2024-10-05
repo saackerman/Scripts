@@ -24,7 +24,7 @@
         Code Review    : Sean Ackerman
         Prerequisite   : PowerShell V7+
     .LINK
-      
+      https://github.com/saackerman/Scripts/blob/master/generate-RandomPassword.ps1
     
 
 #>
