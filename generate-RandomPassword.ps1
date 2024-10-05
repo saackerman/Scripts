@@ -15,7 +15,7 @@
     .EXAMPLE 
         Generate-RandomPassword -MaxLength 10
         Throws an error because the generated password is less than 16 characters long.
-    .EXAMPLE
+    .EXAMPLE 
         Generate-RandomPassword.ps1 -MaxLength 25
         Generates a random password with a length between 16 and 25 characters.
     .NOTES
@@ -38,23 +38,25 @@ function Generate-RandomPassword {
     $lowerChars = 'abcdefghijklmnopqrstuvwxyz'
     $numbers = '1234567890'
     $specialChars = '!@#$%^&*()'
-    
+
+    $password = New-Object System.Collections.Generic.List[char]
+
     # Generate required characters
-    $password = -join ((1..2) | ForEach-Object { $upperChars[(Get-Random -Maximum $upperChars.Length)] })
-    $password += -join ((1..2) | ForEach-Object { $numbers[(Get-Random -Maximum $numbers.Length)] })
-    $password += -join ((1..2) | ForEach-Object { $specialChars[(Get-Random -Maximum $specialChars.Length)] })
-    
+    $password.AddRange((1..2 | ForEach-Object { $upperChars[(Get-Random -Maximum $upperChars.Length)] }))
+    $password.AddRange((1..2 | ForEach-Object { $numbers[(Get-Random -Maximum $numbers.Length)] }))
+    $password.AddRange((1..2 | ForEach-Object { $specialChars[(Get-Random -Maximum $specialChars.Length)] }))
+
     # Generate remaining characters
-    $remainingLength = Get-Random -Minimum ($MinLength - $password.Length) -Maximum ($MaxLength - $password.Length + 1)
+    $remainingLength = Get-Random -Minimum ($MinLength - $password.Count) -Maximum ($MaxLength - $password.Count + 1)
     $allChars = $upperChars + $lowerChars + $numbers + $specialChars
-    $password += -join ((1..$remainingLength) | ForEach-Object { $allChars[(Get-Random -Maximum $allChars.Length)] })
-    
+    $password.AddRange((1..$remainingLength | ForEach-Object { $allChars[(Get-Random -Maximum $allChars.Length)] }))
+
     # Shuffle the password to ensure randomness
-    $password = -join ($password.ToCharArray() | Sort-Object {Get-Random})
-    
+    $password = -join ($password | Sort-Object {Get-Random})
+
     if ($password.Length -lt $MinLength) {
         throw "Generated password is less than $MinLength characters long."
     }
-    
+
     return $password
 }
