@@ -25,35 +25,36 @@
         Prerequisite   : PowerShell V7+
     .LINK
       https://github.com/saackerman/Scripts/blob/master/generate-RandomPassword.ps1
-    
-
 #>
 function Generate-RandomPassword {
-    CmdletBinding[()]
+    [CmdletBinding()]
     param (
-        
+        [ValidateScript({if ($_ -ge 16) { $true } else { throw "MaxLength must be at least 16." }})]
         [int]$MaxLength = 20
     )
-    [int]$MinLength = 16
+    
+    $MinLength = 16
     $upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     $lowerChars = 'abcdefghijklmnopqrstuvwxyz'
     $numbers = '1234567890'
     $specialChars = '!@#$%^&*()'
     
+    # Generate required characters
     $password = -join ((1..2) | ForEach-Object { $upperChars[(Get-Random -Maximum $upperChars.Length)] })
     $password += -join ((1..2) | ForEach-Object { $numbers[(Get-Random -Maximum $numbers.Length)] })
     $password += -join ((1..2) | ForEach-Object { $specialChars[(Get-Random -Maximum $specialChars.Length)] })
     
+    # Generate remaining characters
     $remainingLength = Get-Random -Minimum ($MinLength - $password.Length) -Maximum ($MaxLength - $password.Length + 1)
     $allChars = $upperChars + $lowerChars + $numbers + $specialChars
     $password += -join ((1..$remainingLength) | ForEach-Object { $allChars[(Get-Random -Maximum $allChars.Length)] })
     
     # Shuffle the password to ensure randomness
     $password = -join ($password.ToCharArray() | Sort-Object {Get-Random})
+    
     if ($password.Length -lt $MinLength) {
         throw "Generated password is less than $MinLength characters long."
     }
-    else {
-        return $password
-    }
+    
+    return $password
 }
