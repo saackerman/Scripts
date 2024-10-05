@@ -30,11 +30,7 @@ function Generate-RandomPassword {
 
     # Shuffle the password to ensure randomness
     $password = -join ($password | Sort-Object {Get-Random})
-
-    if ($password.Length -lt $MinLength) {
-        throw "Generated password is less than $MinLength characters long."
-    }
-
+    
     return $password
 }
 
