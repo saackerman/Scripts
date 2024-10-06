@@ -30,9 +30,11 @@ function Generate-RandomPassword {
 
     # Shuffle the password to ensure randomness
     $password = -join ($password | Sort-Object {Get-Random})
-    
+
+   
+    Write-Output "New password is "$password.length" characters long." 
     return $password
 }
 
 # Call the function to generate and display the password
-Generate-RandomPassword -MaxLength 23  
+Generate-RandomPassword
