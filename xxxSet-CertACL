@@ -24,7 +24,9 @@
 function Set-CertACL {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true,
+         HelpMessage = "This is the thumbprint of the certificate",
+         Position = 0)]
         [string]$CertificateId,
 
         [Parameter(Mandatory = $true)]
