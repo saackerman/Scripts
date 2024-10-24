@@ -1,0 +1,24 @@
+<#
+
+#>
+
+# Retrieve the certificate
+$cert = Get-ChildItem Cert:\LocalMachine\My\<certificate id>
+
+# Extract the private key
+$key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+
+# Retrieve the current permissions
+$path = "$env:ALLUSERSPROFILE\Microsoft\Crypto\Keys\$($key.key.UniqueName)"
+$permissions = Get-Acl -Path $path
+
+# Create a new permission rule
+$rule = New-Object Security.AccessControl.FileSystemAccessRule "DOMAIN\User", "Read", "Allow"
+
+# Add the new permission to the ACL
+$permissions.AddAccessRule($rule)
+
+# Apply the updated permissions
+Set-Acl -Path $path -AclObject $permissions
+
+Write-Output "Private key access granted to DOMAIN\User"
