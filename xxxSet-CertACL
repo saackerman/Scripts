@@ -1,24 +1,65 @@
 <#
+.SYNOPSIS
+    Updates the Access Control List (ACL) for a specified certificate.
+
+.DESCRIPTION
+    This script retrieves a certificate, extracts its private key, retrieves current permissions,
+    creates a new permission rule, adds the new permission to the ACL, and applies the updated permissions.
+
+.PARAMETER CertificateId
+    The ID of the certificate to retrieve.
+
+.PARAMETER DomainUser
+    The domain and user for whom the permission rule is created.
+
+.EXAMPLE
+    Set-CertACL -CertificateId "your-certificate-id" -DomainUser "DOMAIN\User"
+
+.NOTES
+    The script was created to grant private key access to a specified DOMAIN\User.
+
 
 #>
 
-# Retrieve the certificate
-$cert = Get-ChildItem Cert:\LocalMachine\My\<certificate id>
+function Set-CertACL {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$CertificateId,
 
-# Extract the private key
-$key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+        [Parameter(Mandatory = $true)]
+        [string]$DomainUser
+    )
 
-# Retrieve the current permissions
-$path = "$env:ALLUSERSPROFILE\Microsoft\Crypto\Keys\$($key.key.UniqueName)"
-$permissions = Get-Acl -Path $path
+    try {
+        # Retrieve the certificate
+        $cert = Get-ChildItem -Path Cert:\LocalMachine\My\$CertificateId
+        if (-not $cert) {
+            throw "Certificate with ID $CertificateId not found."
+        }
 
-# Create a new permission rule
-$rule = New-Object Security.AccessControl.FileSystemAccessRule "DOMAIN\User", "Read", "Allow"
+        # Extract the private key
+        $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+        if (-not $key) {
+            throw "Private key not found for certificate $CertificateId."
+        }
 
-# Add the new permission to the ACL
-$permissions.AddAccessRule($rule)
+        # Retrieve the current permissions
+        $path = "$env:ALLUSERSPROFILE\Microsoft\Crypto\Keys\$($key.key.UniqueName)"
+        $permissions = Get-Acl -Path $path
 
-# Apply the updated permissions
-Set-Acl -Path $path -AclObject $permissions
+        # Create a new permission rule
+        $rule = New-Object Security.AccessControl.FileSystemAccessRule($DomainUser, "Read", "Allow")
 
-Write-Output "Private key access granted to DOMAIN\User"
+        # Add the new permission to the ACL
+        $permissions.AddAccessRule($rule)
+
+        # Apply the updated permissions
+        Set-Acl -Path $path -AclObject $permissions
+
+        Write-Output "Private key access granted to $DomainUser"
+    }
+    catch {
+        Write-Error "Failed to set ACL: $_"
+    }
+}
