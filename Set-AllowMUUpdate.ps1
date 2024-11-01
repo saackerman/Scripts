@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-    Configures nondomain joined servers to enable updates for other Microsoft products on non-domain joined machines.
+    Configures nondomain joined servers to enable updates for other Microsoft products on non-domain joined machines. 
+    To be used in combination with https://devblogs.microsoft.com/dotnet/server-operating-systems-auto-updates/
 
 .DESCRIPTION
     This script sets the local group policy to configure automatic updates and enables updates for other Microsoft products.
@@ -30,4 +31,4 @@ function Set-LocalGPOUpdate {
 }
 
 # Run the function
-Set-LocalGPOUpdate
+Set-AllowMUUpdate
