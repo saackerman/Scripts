@@ -7,19 +7,24 @@ This advanced function connects to a remote website, retrieves its SSL certifica
 
 .PARAMETER Url
 The URL of the website to retrieve the certificate from. This parameter is mandatory.
+- Alias: Uri
+- Type: String
+- Validation: Must match the pattern "^(http[s]?):\/\/[^\s]+$"
+- Default: "https://msn.com"
+- Help Message: Specify the URL of the target website from which the SSL certificate information will be retrieved. The URL must start with http or https.
 
 .EXAMPLE
-Get-WebsiteCertificate -Url "https://example.com"
+Get-WebsiteCertificate -Url "https://www.google.com"
 
 .NOTES
-Author: Your Name
+Author: Sean Ackerman / CoPilot
 Date: 19-Feb-2025
 
 #>
 function Get-WebsiteCertificate {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Specify the URL of the target website from which the SSL certificate information will be retrieved. The URL must start with http or https.")]
         [Alias("Uri")]
         [ValidatePattern("^(http[s]?):\/\/[^\s]+$")]
         [string]$Url = "https://msn.com"
@@ -28,60 +33,43 @@ function Get-WebsiteCertificate {
     # Ignore SSL warnings
     [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
-    #begin {
-        # Import necessary namespaces
-        Add-Type -TypeDefinition @"
-using System.Net.Security;
-using System.Net.Sockets;
-using System.Net;
-"@
-    #}
-    
-    #process {
-        try {
-            # Extract hostname from URL
-            $hostname = [System.Uri]::new($Url).Host
-            
-            # Resolve the host name
-            $address = [System.Net.Dns]::GetHostAddresses($hostname)[0]
+    try {
+        # Extract hostname from URL
+        $hostname = [System.Uri]::new($Url).Host
 
-            # Create a TCP connection to the remote server
-            $tcpClient = New-Object System.Net.Sockets.TcpClient
-            $tcpClient.Connect($address, 443)
-            
-            # Create an SSL stream
-            $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream(), $false, { $true })
-            $sslStream.AuthenticateAsClient($hostname)
-            
-            # Get the certificate information
-            $certificate = $sslStream.RemoteCertificate
-            
-            # Display certificate details
-            if ($certificate -ne $null) {
-                $certInfo = @{
-                    'Issuer' = $certificate.Issuer
-                    'Subject' = $certificate.Subject
-                    'Thumbprint' = $certificate.GetCertHashString()
-                    'Expiration Date' = $certificate.GetExpirationDateString()
-                    'Serial Number' = $certificate.GetSerialNumberString()
-                }
+        # Resolve the host name
+        $address = [System.Net.Dns]::GetHostAddresses($hostname)[0]
 
-                Write-Output $certInfo
-            } else {
-                Write-Warning "No certificate found for $Url"
+        # Create a TCP connection to the remote server
+        $tcpClient = New-Object System.Net.Sockets.TcpClient
+        $tcpClient.Connect($address, 443)
+
+        # Create an SSL stream
+        $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream(), $false, { $true })
+        $sslStream.AuthenticateAsClient($hostname)
+
+        # Get the certificate information
+        $certificate = $sslStream.RemoteCertificate
+
+        # Display certificate details
+        if ($certificate -ne $null) {
+            $certInfo = @{
+                'Issuer' = $certificate.Issuer
+                'Subject' = $certificate.Subject
+                'Thumbprint' = $certificate.GetCertHashString()
+                'Expiration Date' = $certificate.GetExpirationDateString()
+                'Serial Number' = $certificate.GetSerialNumberString()
             }
-            
-            # Close the connection
-            $sslStream.Close()
-            $tcpClient.Close()
-        } catch {
-            Write-Error "Error: $_"
+
+            Write-Output $certInfo
+        } else {
+            Write-Warning "No certificate found for $Url"
         }
-    #}
 
-    #end {
-        # Optional cleanup
-    #}
+        # Close the connection
+        $sslStream.Close()
+        $tcpClient.Close()
+    } catch {
+        Write-Error "Error: $_"
+    }
 }
-
-
