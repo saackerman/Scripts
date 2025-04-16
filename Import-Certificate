@@ -1,0 +1,86 @@
+    <#
+    .SYNOPSIS
+        Imports a PFX certificate into the LocalMachine certificate store.
+
+    .DESCRIPTION
+        This function imports a PFX file into the LocalMachine certificate store and assigns it a friendly name.
+        If no description is provided, the default value will be the current date and time when the script is executed.
+
+    .PARAMETER pfxPath
+        The full path to the PFX file to be imported.
+
+    .PARAMETER pfxPassword
+        The password used to unlock the PFX file.
+
+    .PARAMETER FriendlyName
+        The friendly name to assign to the certificate after import.
+
+    .PARAMETER certDescription
+        A description for the certificate. Defaults to the current date and time.
+
+    .EXAMPLE
+        Import-Certificate -pfxPath "C:\Certificates\myCert.pfx" `
+                           -pfxPassword "password123" `
+                           -FriendlyName "bob"
+
+        This example imports the certificate into the LocalMachine store with a friendly name "bob" and assigns the current date and time as the description.
+
+    .NOTES
+        Ensure you have administrative privileges to access the LocalMachine store.
+    #>
+Function Import-Certificate {
+    [CmdletBinding()]
+    Param (
+        # Path to the PFX file
+        [Parameter(Mandatory, HelpMessage = "Provide the full path to the PFX file.")]
+        [ValidateNotNullOrEmpty()]
+        [string]$pfxPath,
+
+        # Password for the PFX file
+        [Parameter(Mandatory, HelpMessage = "Provide the password for the PFX file.")]
+        [ValidateNotNullOrEmpty()]
+        [string]$pfxPassword,
+
+        # Friendly name to assign to the certificate
+        [Parameter(Mandatory, HelpMessage = "Specify a friendly name for the certificate.")]
+        [ValidateNotNullOrEmpty()]
+        [string]$FriendlyName = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"),
+
+        # Description for the certificate (defaults to current date)
+        [Parameter(HelpMessage = "Provide a description for the certificate.")]
+        [ValidateNotNullOrEmpty()]
+        [string]$certDescription = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+    )
+
+   
+
+    # Validate that the PFX file exists
+    if (-Not (Test-Path -Path $pfxPath)) {
+        Throw "The PFX file does not exist at the specified path: $pfxPath"
+    }
+
+    # Load and import the certificate
+    try {
+        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+        $cert.Import($pfxPath, $pfxPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet)
+
+        # Open the LocalMachine certificate store
+        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
+        $store.Open("ReadWrite")
+
+        # Add the certificate to the store
+        $store.Add($cert)
+
+        # Set friendly name
+        $cert.FriendlyName = $FriendlyName
+
+        # Use the certDescription (now defaulting to current date/time)
+        Write-Host "Certificate imported successfully with FriendlyName '$FriendlyName' and description '$certDescription'."
+
+        # Close the store
+        $store.Close()
+    }
+    catch {
+        Throw "Failed to import the certificate: $_"
+    }
+}
