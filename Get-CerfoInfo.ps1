@@ -1,55 +1,113 @@
 <#
+.SYNOPSIS
+    Retrieves TLS/SSL certificate details from a remote network endpoint.
+
 .DESCRIPTION
-gets certificate info. Add fields you want as needed. gets cert thumbprint, name, and start/end date. calculates days until it expires. Work with powershell 7 and above till the class is retired for something better.
+    This script connects to a specified website or server over a network port (like 443) 
+    using raw .NET sockets. It inspects the SSL/TLS handshake to extract the certificate 
+    details (Thumbprint, Issuer, Expiration Date) without downloading the certificate or 
+    requiring local admin rights. 
+    
+    It safely bypasses SSL validation errors, meaning it will successfully read and report 
+    on expired, untrusted, or self-signed certificates instead of crashing.
 
-.PARAMETER url
-Enter url , default is good if you enter nothing
+.PARAMETER Url
+    The domain name or IP address of the target server. Defaults to 'www.google.com'.
 
-.PARAMETER port
-Enter port default is 443
+.PARAMETER Port
+    The network port to connect to. Defaults to 443 (HTTPS).
+
+.PARAMETER Timeout
+    The maximum time in milliseconds to wait for the connection or handshake before 
+    giving up. Defaults to 5000 (5 seconds).
 
 .EXAMPLE
-get-certinfo.ps1 -url www.msn.com -port 443
-get-certinfo.ps1 -url mylocalsite.local -port 8443
+    .\Get-CertInfo.ps1 -Url "www.google.com"
+    
+    Retrieves the certificate information for Google over the default port 443.
+
+.EXAMPLE
+    .\Get-CertInfo.ps1 -Url "internal-router.local" -Port 8443 -Timeout 2000
+    
+    Queries a custom internal site on port 8443, shortening the timeout threshold to 2 seconds.
+
+.EXAMPLE
+    "www.microsoft.com", "www.github.com" | .\Get-CertInfo.ps1
+    
+    Demonstrates pipeline capability. You can pipe multiple URLs directly into the script 
+    to scan them sequentially.
 
 .OUTPUTS
-$certInfo will contain for example
-Hostname       : www.google.com
-Thumbprint     : F5CCDAB5BA1E141444CC279092CC601F5F08AF77
-Start          : 10/16/2023 01:10:46
-End            : 01/08/2024 01:10:45
-ExpirationDays : 66
-
-.NOTES
-Used AI to clean up code.
-VScode editor.
-
-.Link
-https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.tcpclient?view=net-7.0
-
-.FUNCTIONALITY
-Cool huh kids.
-
+    [PSCustomObject] containing Hostname, Port, Subject, Issuer, Thumbprint, Start, End, 
+    ExpirationDays, and IsValid properties.
 #>
 
 [CmdletBinding()]
 param (
+    [Parameter(Position = 0, ValueFromPipeline = $true)]
+    [string[]]$Url = "www.google.com",
+
+    [Parameter(Position = 1)]
+    [int]$Port = 443,
+
     [Parameter()]
-    [string]$url = "www.google.com",
-    [int]$port = "443"
+    [int]$Timeout = 5000
 )
 
-$request = [System.Net.Sockets.TcpClient]::new($url, $port)
-$stream = [System.Net.Security.SslStream]::new($request.GetStream())
-$stream.AuthenticateAsClient($url)
-$effectiveDate = $stream.RemoteCertificate.GetEffectiveDateString() -as [datetime]
-$expirationDate = $stream.RemoteCertificate.GetExpirationDateString() -as [datetime]
-# create custom object, adjust parameters as needed
-$certInfo = [pscustomobject] @{
-    Hostname        = $stream.TargetHostName
-    Thumbprint      = $stream.RemoteCertificate.Thumbprint
-    Start           = [string]$effectiveDate
-    End             = [string]$expirationDate
-    ExpirationDays  = (New-TimeSpan -Start (Get-Date) -End $expirationDate).Days
+process {
+    $tcpClient = $null
+    $sslStream = $null
+
+    try {
+        # Initialize TCP client with explicit network timeouts
+        $tcpClient = [System.Net.Sockets.TcpClient]::new()
+        $tcpClient.ReceiveTimeout = $Timeout
+        $tcpClient.SendTimeout = $Timeout
+
+        # Establish network connection
+        $tcpClient.Connect($Url, $Port)
+
+        # Create a .NET validation callback delegate that forces 'true'.
+        # This stops the script from crashing when checking expired or self-signed certs.
+        $validationCallback = [System.Net.Security.RemoteCertificateValidationCallback]{ 
+            param($sender, $certificate, $chain, $sslPolicyErrors) 
+            return $true 
+        }
+
+        # Bind the SSL stream to the network connection
+        $networkStream = $tcpClient.GetStream()
+        $sslStream = [System.Net.Security.SslStream]::new($networkStream, $false, $validationCallback)
+        
+        # Perform SSL/TLS handshake
+        $sslStream.AuthenticateAsClient($Url)
+
+        # Extract data safely from the X509Certificate2 object if available
+        if ($sslStream.RemoteCertificate) {
+            $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]$sslStream.RemoteCertificate
+            
+            $expirationDate = $cert.NotAfter
+            $daysRemaining = ($expirationDate - (Get-Date)).Days
+
+            # Output a rich object for easy sorting, filtering, or exporting to CSV
+            [pscustomobject]@{
+                Hostname       = $Url
+                Port           = $Port
+                Subject        = $cert.Subject
+                Issuer         = $cert.Issuer
+                Thumbprint     = $cert.Thumbprint
+                Start          = $cert.NotBefore
+                End            = $expirationDate
+                ExpirationDays = $daysRemaining
+                IsValid        = $daysRemaining -gt 0
+            }
+        }
+    }
+    catch {
+        Write-Error "Failed to retrieve certificate for $Url`:$Port. Reason: $_"
+    }
+    finally {
+        # Always clean up and close open network sockets to prevent memory leaks
+        if ($sslStream) { $sslStream.Dispose() }
+        if ($tcpClient) { $tcpClient.Dispose() }
+    }
 }
-$certInfo
