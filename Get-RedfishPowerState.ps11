@@ -1,0 +1,97 @@
+function Get-RedfishPowerState {
+    <#
+        .SYNOPSIS
+            Gets current power state of Dell servers via iDRAC Redfish API.
+
+        .DESCRIPTION
+            Queries one or more iDRAC endpoints to retrieve the current server
+            power state (On, Off, PoweringOn, PoweringOff). Returns structured
+            objects with hostname, model, and service tag for easy identification.
+
+            No racadm.exe dependency — pure PowerShell via Redfish REST API.
+            Requires iDRAC 8+ with Redfish enabled.
+
+        .PARAMETER iDRACIP
+            One or more iDRAC IP addresses or hostnames. Accepts pipeline input.
+
+        .PARAMETER Credential
+            PSCredential for iDRAC authentication (typically root).
+
+        .EXAMPLE
+            Get-RedfishPowerState -iDRACIP '172.26.80.82' -Credential $cred
+
+            Check single host power state.
+
+        .EXAMPLE
+            82..93 | ForEach-Object { "172.26.80.$_" } | Get-RedfishPowerState -Credential $cred
+
+            Check all dev hosts.
+
+        .EXAMPLE
+            $results = Get-RedfishPowerState -iDRACIP (Get-Content .\idrac-ips.txt) -Credential $cred
+            $results | Where-Object PowerState -eq 'Off'
+
+            Find all powered-off servers from a list.
+
+        .EXAMPLE
+            Get-RedfishPowerState -iDRACIP '172.26.80.82','172.26.80.83' -Credential $cred | Format-Table
+
+            Quick table view of multiple hosts.
+
+        .NOTES
+            Requires PowerShell 7+ for -SkipCertificateCheck and -Authentication Basic.
+            PowerState values: On, Off, PoweringOn, PoweringOff.
+
+        .OUTPUTS
+            PSCustomObject with iDRACIP, HostName, Model, ServiceTag, and PowerState.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSObject])]
+    param (
+        [Parameter(Mandatory, ValueFromPipeline, Position = 0,
+            HelpMessage = "iDRAC IP address(es), e.g. '10.0.0.5")]
+        [ValidateNotNullOrEmpty()]
+        [Alias('IP', 'Host')]
+        [string[]]$iDRACIP,
+
+        [Parameter(Mandatory,
+            HelpMessage = "iDRAC credential (typically root)")]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential
+    )
+
+    process {
+        foreach ($IP in $iDRACIP) {
+            try {
+                $RestParams = @{
+                    Uri                  = "https://$IP/redfish/v1/Systems/System.Embedded.1"
+                    Method               = 'Get'
+                    Credential           = $Credential
+                    Authentication       = 'Basic'
+                    SkipCertificateCheck = $true
+                    ErrorAction          = 'Stop'
+                }
+                $Response = Invoke-RestMethod @RestParams
+
+                [PSCustomObject]@{
+                    iDRACIP    = $IP
+                    HostName   = $Response.HostName
+                    Model      = $Response.Model
+                    ServiceTag = $Response.SKU
+                    PowerState = $Response.PowerState
+                }
+            }
+            catch {
+                [PSCustomObject]@{
+                    iDRACIP    = $IP
+                    HostName   = 'ERROR'
+                    Model      = ''
+                    ServiceTag = ''
+                    PowerState = "Failed: $($_.Exception.Message)"
+                }
+                Write-Warning "$IP — Query failed: $($_.Exception.Message)"
+            }
+        }
+    }
+}
