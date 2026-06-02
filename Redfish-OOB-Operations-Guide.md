@@ -12,7 +12,7 @@ Safe out-of-band power management via iDRAC Redfish API. Use these scripts toget
 ## Prerequisites
 
 - PowerShell 7+ (required for `-SkipCertificateCheck` and `-Authentication Basic`)
-- Network access to iDRAC management subnet (172.26.80.x)
+- Network access to iDRAC management subnet
 - iDRAC credentials (root account)
 - Dot-source both scripts before use
 
@@ -29,14 +29,14 @@ $cred = Get-Credential root
 Before any power action, always verify the iDRAC IP maps to the correct server.
 
 ```powershell
-Get-RedfishPowerState -iDRACIP '172.26.80.86' -Credential $cred
+Get-RedfishPowerState -iDRACIP '192.0.2.1' -Credential $cred
 ```
 
 Output:
 ```
 iDRACIP       HostName            Model               ServiceTag  PowerState
 -------       --------            -----               ----------  ----------
-172.26.80.86  dev1-w2c1-esx05     PowerEdge R660xs    ABC1234     On
+192.0.2.1     esxi-host-01        PowerEdge R660xs    ABC1234     On
 ```
 
 **Confirm the HostName and ServiceTag match your inventory before proceeding.**
@@ -48,7 +48,7 @@ iDRACIP       HostName            Model               ServiceTag  PowerState
 When targeting a group, query all IPs first and review the list.
 
 ```powershell
-$targets = 82..93 | ForEach-Object { "172.26.80.$_" }
+$targets = 1..12 | ForEach-Object { "192.0.2.$_" }
 $inventory = $targets | Get-RedfishPowerState -Credential $cred
 $inventory | Format-Table -AutoSize
 ```
@@ -122,7 +122,7 @@ All hosts should show `PowerState: Off` after graceful shutdown.
 $cred = Get-Credential root
 
 # Define targets
-$targets = 82..93 | ForEach-Object { "172.26.80.$_" }
+$targets = 1..12 | ForEach-Object { "192.0.2.$_" }
 
 # Step 1: Verify identity
 $inventory = $targets | Get-RedfishPowerState -Credential $cred
@@ -171,4 +171,4 @@ $toShutdown.iDRACIP | Get-RedfishPowerState -Credential $cred | Format-Table
 
 - `Stop-ESXHostSafe.ps1` — vCenter-based shutdown (evacuates VMs first via DRS)
 - `Invoke-iDRACPowerAction.ps1` — Legacy racadm.exe version (same concept, external tool dependency)
-- `vxrail_readme.md` — Full inventory with iDRAC IP to hostname mapping
+
