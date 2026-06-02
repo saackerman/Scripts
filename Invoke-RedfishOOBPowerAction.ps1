@@ -19,23 +19,23 @@ function Invoke-RedfishOOBPowerAction {
             PSCredential for iDRAC authentication. Prompted if not provided.
 
         .EXAMPLE
-            Invoke-RedfishOOBPowerAction -iDRACIP '172.26.80.82' -Action GracefulShutdown -Credential $cred
+            Invoke-RedfishOOBPowerAction -iDRACIP '192.0.2.1' -Action GracefulShutdown -Credential $cred
 
             Graceful shutdown of single server.
 
         .EXAMPLE
-            '172.26.80.82','172.26.80.83' | Invoke-RedfishOOBPowerAction -Action PowerCycle -Credential $cred
+            '192.0.2.1','192.0.2.2' | Invoke-RedfishOOBPowerAction -Action PowerCycle -Credential $cred
 
             Power cycle multiple servers via pipeline.
 
         .EXAMPLE
-            $devIDRACs = '172.26.80.82','172.26.80.83','172.26.80.84'
+            $devIDRACs = '192.0.2.1','192.0.2.2','192.0.2.3'
             Invoke-RedfishOOBPowerAction -iDRACIP $devIDRACs -Action On -Credential (Get-Credential)
 
             Power on array of servers.
 
         .EXAMPLE
-            Invoke-RedfishOOBPowerAction -iDRACIP '172.26.80.82' -Action GracefulShutdown -Credential $cred -WhatIf
+            Invoke-RedfishOOBPowerAction -iDRACIP '192.0.2.1' -Action GracefulShutdown -Credential $cred -WhatIf
 
             Preview without executing.
 
@@ -51,7 +51,7 @@ function Invoke-RedfishOOBPowerAction {
     [OutputType([PSObject])]
     param (
         [Parameter(Mandatory, ValueFromPipeline, Position = 0,
-            HelpMessage = "iDRAC IP address(es), e.g. '10.10.10.10'")]
+            HelpMessage = "iDRAC IP address(es), e.g. '192.0.2.1'")]
         [ValidateNotNullOrEmpty()]
         [Alias('IP', 'Host')]
         [string[]]$iDRACIP,
