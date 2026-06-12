@@ -2,11 +2,11 @@
 
 ## Synopsis
 
-Returns comprehensive VM details from vCenter including placement, networking, and tools status.
+Returns comprehensive VM details from vCenter including placement, networking, disk controllers, and tools status.
 
 ## Description
 
-Queries a connected vCenter for VM objects and returns a structured PSCustomObject with datacenter, cluster, host, datastore, folder, guest OS, network, IP, MAC, and VMware Tools info. Supports both direct name input and pipeline input from `Get-VM`.
+Queries a connected vCenter for VM objects and returns a structured PSCustomObject with datacenter, cluster, host, datastore, folder, guest OS, CPU, RAM, disk details with controller types, NIC details with adapter types, IP, MAC, and VMware Tools info. Supports both direct name input and pipeline input from `Get-VM`.
 
 ## Prerequisites
 
@@ -34,10 +34,32 @@ Queries a connected vCenter for VM objects and returns a structured PSCustomObje
 | Datastore | string | Datastore(s), comma-separated |
 | FolderName | string | vCenter folder location |
 | GuestOS | string | Full guest OS name |
+| NumCPU | int | vCPU count |
+| MemoryGB | int | RAM in GB |
+| DiskCount | int | Number of hard disks |
+| TotalDiskGB | double | Sum of all disk capacity in GB |
+| Disks | string | Per-disk detail: `Name:SizeGB(Format)[Controller]` |
 | NetworkName | string | Port group(s), comma-separated |
+| NICs | string | Per-NIC detail: `Name:Network(AdapterType)` |
 | IPAddress | string | Guest IP address(es), comma-separated |
 | MacAddress | string | NIC MAC address(es), comma-separated |
 | VMTools | string | Tools version status |
+
+### Disks Format
+
+```
+Hard disk 1:100GB(Thick)[PVSCSI]; Hard disk 2:50GB(Thin)[LSI Logic SAS]
+```
+
+Controller types resolved: PVSCSI, LSI Logic SAS, LSI Logic, BusLogic, NVMe, IDE, SATA.
+
+### NICs Format
+
+```
+Network adapter 1:VLAN-Production(Vmxnet3); Network adapter 2:VLAN-Backup(E1000e)
+```
+
+Adapter types: Vmxnet3, E1000e, E1000, Flexible, etc.
 
 ## Examples
 
@@ -56,29 +78,35 @@ Get-VM -Name 'web*' | Get-VMInformation | Export-Csv -Path '.\reports\vm-info.cs
 
 # Filter powered-off VMs
 Get-VM | Get-VMInformation | Where-Object PowerState -eq 'PoweredOff'
+
+# Find VMs using LSI Logic controllers
+Get-VM | Get-VMInformation | Where-Object Disks -like '*LSI*'
+
+# Find VMs with E1000 NICs (candidates for upgrade to vmxnet3)
+Get-VM | Get-VMInformation | Where-Object NICs -like '*E1000*'
 ```
 
 ## Flow Diagram
 
 ```mermaid
 flowchart TD
-    A[Start] --> B{Input method?}
-    B -->|Name parameter| C[Get-VM by name]
-    B -->|Pipeline| D[Receive VM objects]
-    C --> E{Connected to vCenter?}
-    D --> E
-    E -->|No| F[Write-Error + Stop]
-    E -->|Yes| G[Validate VM objects]
-    G --> H{Valid VM object?}
-    H -->|No| I[Write-Error + Stop]
-    H -->|Yes| J[Loop: foreach VM]
-    J --> K[Extract vCenter from UID]
-    K --> L[Get Datacenter, Cluster, Host]
-    L --> M[Get Datastore, Network, IP, MAC]
-    M --> N[Build PSCustomObject]
-    N --> O[Output to pipeline]
+    A[Start] --> B{Connected to vCenter?}
+    B -->|No| C[Write-Error + Stop]
+    B -->|Yes| D{Name or Pipeline?}
+    D -->|Name param| E[Get-VM by name]
+    D -->|Pipeline| F[Receive VM objects]
+    E --> G[Validate VM objects]
+    F --> G
+    G --> H[Loop: foreach VM]
+    H --> I[Extract vCenter from UID]
+    I --> J[Get Datacenter, Cluster, Host, Datastore]
+    J --> K[Get-HardDisk + build controller lookup]
+    K --> L[Build Disks summary with controller type]
+    L --> M[Get-NetworkAdapter with adapter type]
+    M --> N[Build PSCustomObject with all properties]
+    N --> O[Update Write-Progress]
     O --> P{More VMs?}
-    P -->|Yes| J
+    P -->|Yes| H
     P -->|No| Q[End]
 ```
 
@@ -89,7 +117,6 @@ sequenceDiagram
     participant User
     participant Script as Get-VMInformation
     participant VCenter as vCenter API
-    participant VMHost as ESXi Host
 
     User->>Script: -Name or pipeline VM objects
     Script->>VCenter: Get-VM (if Name param)
@@ -98,9 +125,12 @@ sequenceDiagram
         Script->>VCenter: Get-Datacenter (from VMHost)
         Script->>VCenter: Get-Cluster (from VMHost)
         Script->>VCenter: Get-Datastore (from VM)
-        Script->>VCenter: Get-NetworkAdapter (from VM)
-        Script->>Script: Extract IP from ExtensionData
-        Script->>Script: Extract Tools status from ExtensionData
+        Script->>Script: Read ExtensionData.Config.Hardware.Device
+        Script->>Script: Build controller key lookup (PVSCSI, LSI, NVMe, etc.)
+        Script->>VCenter: Get-HardDisk (capacity, format)
+        Script->>Script: Match each disk to controller type via ControllerKey
+        Script->>VCenter: Get-NetworkAdapter (network, MAC, type)
+        Script->>Script: Extract IP from ExtensionData.Summary.Guest
         Script-->>User: PSCustomObject with all properties
     end
 ```
@@ -110,5 +140,6 @@ sequenceDiagram
 - Requires active vCenter connection — fails fast if `$Global:DefaultVIServer` is null
 - Progress bar displayed during processing
 - Multi-value properties (Datastore, NetworkName, IP, MAC) are comma-separated strings
-- Does not include CPU count, RAM, or disk sizing — use `Get-VM` directly for those
-- Original author: theSysadminChannel (2019)
+- Disk and NIC detail strings use semicolons as separators for CSV-friendly export
+- Controller type resolved from ExtensionData device list — maps ControllerKey to human-readable type
+- Original author: theSysadminChannel (2019), extended with disk/NIC detail
