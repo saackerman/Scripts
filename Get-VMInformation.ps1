@@ -1,4 +1,4 @@
-﻿
+
 <#
 .SYNOPSIS
     Get information from a VM object. Properties inlcude Name, PowerState, vCenterServer, Datacenter, Cluster, VMHost, Datastore, Folder, GuestOS, NetworkName, IPAddress, MacAddress, VMTools
@@ -64,6 +64,57 @@
         foreach ($Object in $InputObject) {
             try {
                 $vCenter = $Object.Uid -replace ".+@"; $vCenter = $vCenter -replace ":.+"
+
+                # Disk info — each hard disk with capacity, format, and controller type
+                $HardDisks = $Object | Get-HardDisk -ErrorAction SilentlyContinue
+                $AllDevices = $Object.ExtensionData.Config.Hardware.Device
+
+                # Build controller lookup: key = controller key, value = controller type label
+                $ControllerLookup = @{}
+                foreach ($Dev in $AllDevices) {
+                    if ($Dev -is [VMware.Vim.VirtualSCSIController] -or
+                        $Dev -is [VMware.Vim.VirtualNVMEController] -or
+                        $Dev -is [VMware.Vim.VirtualIDEController] -or
+                        $Dev -is [VMware.Vim.VirtualSATAController]) {
+                        $CtrlType = switch -Wildcard ($Dev.GetType().Name) {
+                            'ParaVirtualSCSIController'     { 'PVSCSI' }
+                            'VirtualLsiLogicSASController'  { 'LSI Logic SAS' }
+                            'VirtualLsiLogicController'     { 'LSI Logic' }
+                            'VirtualBusLogicController'     { 'BusLogic' }
+                            '*NVMEController'               { 'NVMe' }
+                            '*IDEController'                { 'IDE' }
+                            '*SATAController'               { 'SATA' }
+                            default                         { $Dev.GetType().Name }
+                        }
+                        $ControllerLookup[$Dev.Key] = $CtrlType
+                    }
+                }
+
+                $DiskSummary = if ($HardDisks) {
+                    ($HardDisks | ForEach-Object {
+                        # Match disk to controller via ExtensionData
+                        $DiskDevice = $AllDevices | Where-Object { $_.DeviceInfo.Label -eq $_.Name } |
+                            Select-Object -First 1
+                        $CtrlKey = $_.ExtensionData.ControllerKey
+                        $CtrlType = if ($CtrlKey -and $ControllerLookup.ContainsKey($CtrlKey)) {
+                            $ControllerLookup[$CtrlKey]
+                        } else { 'Unknown' }
+                        "{0}:{1}GB({2})[{3}]" -f $_.Name, [math]::Round($_.CapacityGB, 1), $_.StorageFormat, $CtrlType
+                    }) -join '; '
+                } else { 'N/A' }
+
+                $TotalDiskGB = if ($HardDisks) {
+                    [math]::Round(($HardDisks | Measure-Object -Property CapacityGB -Sum).Sum, 1)
+                } else { 0 }
+
+                # NIC info — adapter type (e1000e, vmxnet3, etc.)
+                $NICs = $Object | Get-NetworkAdapter -ErrorAction SilentlyContinue
+                $NicSummary = if ($NICs) {
+                    ($NICs | ForEach-Object {
+                        "{0}:{1}({2})" -f $_.Name, $_.NetworkName, $_.Type
+                    }) -join '; '
+                } else { 'N/A' }
+
                 [PSCustomObject]@{
                     Name        = $Object.Name
                     PowerState  = $Object.PowerState
@@ -74,9 +125,15 @@
                     Datastore   = ($Object | Get-Datastore | select -ExpandProperty Name) -join ', '
                     FolderName  = $Object.Folder
                     GuestOS     = $Object.ExtensionData.Config.GuestFullName
-                    NetworkName = ($Object | Get-NetworkAdapter | select -ExpandProperty NetworkName) -join ', '
+                    NumCPU      = $Object.NumCpu
+                    MemoryGB    = $Object.MemoryGB
+                    DiskCount   = if ($HardDisks) { $HardDisks.Count } else { 0 }
+                    TotalDiskGB = $TotalDiskGB
+                    Disks       = $DiskSummary
+                    NetworkName = ($NICs | ForEach-Object { $_.NetworkName }) -join ', '
+                    NICs        = $NicSummary
                     IPAddress   = ($Object.ExtensionData.Summary.Guest.IPAddress) -join ', '
-                    MacAddress  = ($Object | Get-NetworkAdapter | select -ExpandProperty MacAddress) -join ', '
+                    MacAddress  = ($NICs | ForEach-Object { $_.MacAddress }) -join ', '
                     VMTools     = $Object.ExtensionData.Guest.ToolsVersionStatus2
                 }
  
